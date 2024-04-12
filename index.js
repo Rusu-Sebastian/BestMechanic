@@ -51,13 +51,20 @@ app.post('/submit', (req, res) => {
     clientNou.email = req.body.email;
     clientNou.nrMasini = req.body.nrMasini;
     console.log(clientNou);
-    console.log(req.body);
+    const masina1 = new masina();
+    masina1.nrDeInmatriculare = req.body.nrDeInmatriculare;
+    masina1.serieSasiu = req.body.serieSasiu;
+    masina1.marca = req.body.marca;
+    masina1.model = req.body.model;
+    masina1.anFabricatie = req.body.anFabricatie;
+    masina1.tipMotorizare = req.body.tipMotorizare;
+    masina1.capacitateMotor = req.body.capacitateMotor;
+    masina1.caiPutere = req.body.caiPutere;
+    masina1.cutieDeViteza = req.body.cutieDeViteza;
+    console.log(masina1);
+    res.send('Formular completat cu succes!');
 });
 
-//primirea formularului de la client si stocarea informatiilor in obiectul masina
-app.post('/submitCar', (req, res) => {
-    console.log(req.body);
-});
 
 //pornirea serverului
 app.listen(port, () => {
