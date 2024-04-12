@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Administrare clienți</title>
+</head>
+<body>
+    <h1>Administrare clienți</h1>
+
+    <!-- Add Client Form -->
+    <h2>Adăugare client</h2>
+    <form id="myForm" action="/submit" method="post">
+        <label for="nume">Nume:</label>
+        <input type="text" id="nume" name="nume" required><br>
+
+        <label for="prenume">Prenume:</label>
+        <input type="text" id="prenume" name="prenume" required><br>
+
+        <label for="nrTelefon">Număr de telefon:</label>
+        <input type="tel" id="nrTelefon" name="nrTelefon" required><br>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br>
+
+        <label for="nrMasiniDetinute">Număr de mașini:</label>
+        <input type="number" id="nrMasini" name="nrMasini" required><br>
+
+        <input type="submit" value="Adaugă client">
+    </form>
+    <script>
+        function addCarForm() {
+            var numMasini = document.getElementById("nrMasini").value;
+            var formContainer = document.getElementById("carForms");
+
+            // Clear existing car forms
+            formContainer.innerHTML = "";
+
+            // Create car data forms based on the number of cars
+            for (var i = 0; i < numMasini; i++) {
+                var carForm = document.createElement("div");
+                carForm.innerHTML = `
+                    <h2>Date mașină ${i + 1}</h2>
+                    <label for="nrDeInmatriculare">Numar de inmatriculare:</label>
+                    <input type="text" id="nrDeInmatriculare" name="nrDeInmatriculare" required><br>
+
+                    <label for="serieSasiu">Serie Sasiu:</label>
+                    <input type="text" id="serieSasiu" name="serieSasiu" required><br>
+
+                    <label for="marca">Marca:</label>
+                    <input type="text" id="marca" name="marca" required><br>
+
+                    <label for="model">Model:</label>
+                    <input type="text" id="model" name="model" required><br>
+
+                    <label for="anFabricatie">An de fabricare:</label>
+                    <input type="number" id="anFabricare" name="anFabricare" required><br>
+
+                    <label for="tipMotorizare">Marca:</label>
+                    <select id="tipMotorizare" name="tipMotorizare" required
+                        <option value="benzina">Benzina</option>
+                        <option value="diesel">Diesel</option>
+                        <option value="electric">Electric</option>
+                        <option value="hibrid">Hibrid</option>
+                        <option value="altul">Altul</option>
+                    </select><br>
+
+                    <label for="capacitateMotor">Capacitate motor:</label>
+                    <input type="number" id="capacitateMotor" name="capacitateMotor" required><br>
+
+                    <label for="caiPutere">CaiPutere:</label>
+                    <input type="number" id="caiPutere" name="caiPutere" required><br>
+
+                    <label for="cutieDeViteza">Cutie de viteza:</label>
+                    <select id="cutieDeViteza" name="cutieDeViteza" required>
+                        <option value="manuala">Manuala</option>
+                        <option value="automata">Automata</option>
+                    </select><br>
+
+                    <input type="submitCar" value="Adaugă mașină">
+                `;
+                formContainer.appendChild(carForm);
+            }
+        }
+    </script>
+    </form>
+</body>
+</html>
