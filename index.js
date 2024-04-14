@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
+import {JSONDB} from "@beforesemicolon/node-json-db";
 
 //constante pentru crearea serverului
 const app = express();
@@ -65,6 +66,10 @@ app.post('/submit', (req, res) => {
     res.send('Formular completat cu succes!');
 });
 
+//folosirea fisierului clienti.json ca baza de date
+const db = new JSONDB("clienti");
+
+db.insert({clientNou}, {masina1});
 
 //pornirea serverului
 app.listen(port, () => {
