@@ -1,130 +1,149 @@
+//importarea modulelor necesare
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import bodyParser from "body-parser";
-import {JSONDB} from "@beforesemicolon/node-json-db";
+import { JsonDB, Config } from "node-json-db";
+import { createInterface } from "readline";
 
-//constante pentru crearea serverului
+//crearea obiectului app pentru a putea folosi serverul express
 const app = express();
 const port = 3000;
 
-//constante pentru a putea folosi path-ul
+//definirea variabilelor __filename și __dirname pentru a putea folosi path-ul curent
+//probabil nu mai e nevoie de aceste variabile, dar le las așa pentru compatibilitate
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-//obiect informatii despre client
-class client{
-    nume;
-    prenume;
-    nrTelefon;
-    email;
-    nrMasini;
-}
-
-//obiect cu informatiile despre masina clientului
-class masina{
-    nrDeInmatriculare;
-    serieSasiu;
-    marca;
-    model;
-    anFabricare;
-    tipMotorizare;
-    capacitateMotor;
-    caiPutere;
-    cutieDeViteza;
-    kwPutere = Number(this.caiPutere) * 0.73549875;
-}
-
-//trimite fisierul index.html la client
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+//crearea interfeței pentru citirea de la tastatură
+const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
 });
 
-//middleware pentru a putea folosi body-parser
-app.use(express.urlencoded({ extended: true }));
-
-//primirea formularului de la client si stocarea informatiilor in obiectul client
-app.post('/submit', (req, res) => {
-    const clientNou = new client();
-    clientNou.nume = req.body.nume;
-    clientNou.prenume = req.body.prenume;
-    clientNou.nrTelefon = req.body.nrTelefon;
-    clientNou.email = req.body.email;
-    clientNou.nrMasini = req.body.nrMasini;
-    console.log(clientNou);
-    for (var i = 0; i < clientNou.nrMasini; i++) {
-        res.send( `
-        <h2>Date mașină ${i + 1}</h2>
-        <form action="/submitCar" method="post">
-        <label for="nrDeInmatriculare">Numar de inmatriculare:</label>
-        <input type="text" id="nrDeInmatriculare" name="nrDeInmatriculare" required><br>
-
-        <label for="serieSasiu">Serie Sasiu:</label>
-        <input type="text" id="serieSasiu" name="serieSasiu" required><br>
-
-        <label for="marca">Marca:</label>
-        <input type="text" id="marca" name="marca" required><br>
-
-        <label for="model">Model:</label>
-        <input type="text" id="model" name="model" required><br>
-
-        <label for="anFabricatie">An de fabricare:</label>
-        <input type="number" id="anFabricare" name="anFabricare" required><br>
-
-        <label for="tipMotorizare">Tip Motorizare:</label>
-        <select id="tipMotorizare" name="tipMotorizare" required>
-            <option value="benzina">Benzina</option>
-            <option value="diesel">Diesel</option>
-            <option value="electric">Electric</option>
-            <option value="hibrid">Hibrid</option>
-            <option value="altul">Altul</option>
-        </select><br>
-
-        <label for="capacitateMotor">Capacitate motor:</label>
-        <input type="number" id="capacitateMotor" name="capacitateMotor" required><br>
-
-        <label for="caiPutere">CaiPutere:</label>
-        <input type="number" id="caiPutere" name="caiPutere" required><br>
-
-        <label for="cutieDeViteza">Cutie de viteza:</label>
-        <select id="cutieDeViteza" name="cutieDeViteza" required>
-            <option value="manuala">Manuala</option>
-            <option value="automata">Automata</option>
-        </select><br>
-
-        <input type="submit" value="Adaugă mașină">
-        </form>
-    `);
+//definirea claselor client și mașină
+class client {
+    constructor(nume, prenume, nrTelefon, email, nrMasini) {
+        this.nume = nume;
+        this.prenume = prenume;
+        this.nrTelefon = nrTelefon;
+        this.email = email;
+        this.nrMasini = nrMasini;
+        this.masini = [];
     }
+}
+
+class masina {
+    constructor(nrDeInmatriculare, serieSasiu, marca, model, anFabricatie, tipMotorizare, capacitateMotor, caiPutere, cutieDeViteze, kwPutere) {
+        this.nrDeInmatriculare = nrDeInmatriculare;
+        this.serieSasiu = serieSasiu;
+        this.marca = marca;
+        this.model = model;
+        this.anFabricatie = anFabricatie;
+        this.tipMotorizare = tipMotorizare;
+        this.capacitateMotor = capacitateMotor;
+        this.caiPutere = caiPutere;
+        this.cutieDeViteze = cutieDeViteze;
+        this.kwPutere = kwPutere;
+    }
+}
+
+//definirea funcției de întrebare pentru a putea folosi async/await
+function intrebare(question) {
+    return new Promise((resolve, reject) => {
+        rl.question(question, (answer) => {
+            resolve(answer);
+        });
+    });
+}
+
+//definirea funcției de adăugare a mașinilor pentru un client
+async function adaugaMasini(clientNou, nrMasini) {
+    for (let i = 0; i < nrMasini; i++) {
+        const masinaNoua = new masina();
+        masinaNoua.nrDeInmatriculare = await intrebare(`Introduceți numărul de înmatriculare al mașinii ${i + 1}: `);
+        masinaNoua.serieSasiu = await intrebare(`Introduceți seria de șasiu a mașinii ${i + 1}: `);
+        masinaNoua.marca = await intrebare(`Introduceți marca mașinii ${i + 1}: `);
+        masinaNoua.model = await intrebare(`Introduceți modelul mașinii ${i + 1}: `);
+        masinaNoua.anFabricatie = await intrebare(`Introduceți anul de fabricație al mașinii ${i + 1}: `);
+        masinaNoua.tipMotorizare = await intrebare(`Introduceți tipul motorizării mașinii ${i + 1}: `);
+        masinaNoua.capacitateMotor = await intrebare(`Introduceți capacitatea motorului mașinii ${i + 1}: `);
+        masinaNoua.caiPutere = await intrebare(`Introduceți caii putere ai motorului mașinii ${i + 1}: `);
+        masinaNoua.kwPutere = masinaNoua.caiPutere * 0.735499;
+        masinaNoua.cutieDeViteze = await intrebare(`Introduceți cutia de viteze a mașinii ${i + 1}: `);
+        clientNou.masini.push(masinaNoua);
+    }
+}
+
+//definirea funcției de adăugare a unui client
+async function adaugaClient() {
+    const clientNou = new client();
+    clientNou.nume = await intrebare("Introduceți numele clientului: ");
+    clientNou.prenume = await intrebare("Introduceți prenumele clientului: ");
+    clientNou.nrTelefon = await intrebare("Introduceți numărul de telefon al clientului: ");
+    clientNou.email = await intrebare("Introduceți email-ul clientului: ");
+    const nrMasini = parseInt(await intrebare("Introduceți numărul de mașini pe care clientul le va lăsa pentru reparații: "));
+    clientNou.nrMasini = nrMasini;
+    await adaugaMasini(clientNou, nrMasini);
+    console.log("Client adăugat:", clientNou);
+    salvareClient(clientNou);
+}
+
+//definirea functiei meniu
+async function meniu() {
+    const raspuns = await intrebare("Ce doriți să faceți? (introduceți cifra corespunzătoare)\n1. Adăugați clienți.\n2. Modificați client.\n3. Ștergeți clienți.\n");
+    switch (raspuns) {
+        case "1":
+            await adaugaClient();
+            break;
+        case "2":
+            modificaClient();
+            break;
+        case "3":
+            stergeClient();
+            break;
+        default:
+            console.log("Opțiune invalidă");
+            await meniu();
+            break;
+    }
+}
+
+//definirea functiei de modificare a unui client
+function modificaClient() {
+    //TODO: Implementare funcție
+    console.log("Mai așteaptă");
+    meniu();
+}
+
+//definirea funcției de ștergere a unui client
+function stergeClient() {
+    //TODO: Implementare funcție
+    console.log("Mai așteaptă");
+    meniu();
+}
+
+//definirea funcției de salvare a unui client în baza de date
+function salvareClient(client) {
+    try {
+        const db = new JsonDB(new Config("clienti", true, false, '/'));
+        db.push("/clienti[]", client, true);
+    } catch (error) {
+        console.error("Eroare la salvarea clientului:", error);
+    }
+}
+
+//definirea rutei principale
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.post('/submitCar', (req, res) => {
-    const masina1 = new masina();
-    masina1.nrDeInmatriculare = req.body.nrDeInmatriculare;
-    masina1.serieSasiu = req.body.serieSasiu;
-    masina1.marca = req.body.marca;
-    masina1.model = req.body.model;
-    masina1.anFabricare = req.body.anFabricare;
-    masina1.tipMotorizare = req.body.tipMotorizare;
-    masina1.capacitateMotor = req.body.capacitateMotor;
-    masina1.caiPutere = req.body.caiPutere;
-    masina1.cutieDeViteza = req.body.cutieDeViteza;
-    console.log(masina1);
-    res.send('Masina adaugata');
-});
-
-//folosirea fisierului clienti.json ca baza de date
-const db = new JSONDB("clienti");
-
-db.insert({clientNou}, {masina1});
-
-//pornirea serverului
+//pornirea serverului pe portul 3000 și afișarea unui mesaj de confirmare
 app.listen(port, () => {
     console.log(`Server started on port ${port}`);
-  });
-  
+    meniu();
+});
 
-//middleware pentru a trata cazurile in care ruta nu exista
+//eroare 404 pentru rutele inexistente
 app.use((req, res) => {
-    res.status(404).send('Not Found');
+    res.status(404).send("Not Found");
 });
