@@ -7,6 +7,7 @@ function addCarForm() {
         var carForm = document.createElement("div");
         carForm.innerHTML = `
             <h2>Date mașină ${i + 1}</h2>
+            <form action="/submitCar" method="post">
             <label for="nrDeInmatriculare">Numar de inmatriculare:</label>
             <input type="text" id="nrDeInmatriculare" name="nrDeInmatriculare" required><br>
 
@@ -44,6 +45,7 @@ function addCarForm() {
             </select><br>
 
             <input type="submit" value="Adaugă mașină">
+            </form>
         `;
         if (i == 1) {
             // Add an identifier to the second form
