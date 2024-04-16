@@ -1,32 +1,23 @@
-//importarea modulelor necesare
-import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import { JsonDB, Config } from "node-json-db";
-import { createInterface } from "readline";
-import { exit } from "process";
+// TODO crearea functii separate pentru adaugare, afisare, stergere si editare care sa ia parametrii on functie de ce se doreste
+// TODO curatare cod, inca sunt chestii nefolosite ramase din teste
+// TODO verifica clasele daca sunt necesare masini si programare ca nu sunt folosite 
 
-//crearea obiectului app pentru a putea folosi serverul express
+// Importarea modulelor necesare
+import express from "express";
+import { JsonDB, Config } from "node-json-db";
+import { v4 as uuidv4 } from "uuid";
+
+// Crearea unui server express
 const app = express();
 const port = 3000;
 
-//definirea variabilelor __filename și __dirname pentru a putea folosi path-ul curent
-//probabil nu mai e nevoie de aceste variabile, dar le las așa pentru compatibilitate
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Crearea bazei de date JSON
+const db = new JsonDB(new Config("baza", true, false, '/'));
 
-//crearea interfeței pentru citirea de la tastatură
-const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-});
-
-//crearea bazei de date client.json
-const db = new JsonDB(new Config("client", true, false, '/'));
-
-//definirea claselor client și mașină
+// Crearea obiectului client
 class client {
     constructor(nume, prenume, nrTelefon, email, nrMasini) {
+        this.id = uuidv4();
         this.nume = nume;
         this.prenume = prenume;
         this.nrTelefon = nrTelefon;
@@ -36,9 +27,11 @@ class client {
     }
 }
 
-class masina {
-    constructor(nrDeInmatriculare, serieSasiu, marca, model, anFabricatie, tipMotorizare, capacitateMotor, caiPutere, cutieDeViteze, kwPutere) {
-        this.nrDeInmatriculare = nrDeInmatriculare;
+// Crearea obiectului masina
+class masinaa {
+    constructor(nrInmatriculare, serieSasiu, marca, model, anFabricatie, tipMotorizare, capacitateMotor, caiPutere, cutieDeViteze, kwPutere) {
+        this.masinaId = uuidv4();
+        this.nrInmatriculare = nrInmatriculare;
         this.serieSasiu = serieSasiu;
         this.marca = marca;
         this.model = model;
@@ -51,308 +44,277 @@ class masina {
     }
 }
 
-//definirea funcției de întrebare pentru a putea folosi async/await
-function intrebare(question) {
-    return new Promise((resolve, reject) => {
-        rl.question(question, (answer) => {
-            resolve(answer);
-        });
-    });
-}
-
-//definirea functiei meniu
-async function meniu() {
-    const raspuns = await intrebare("Ce doriți să faceți?\n1. Adăugați clienți.\n2. Modificați client.\n3. Afisare clienti\n4. Ștergeți clienți.\n0. Ieșiți din aplicație.\nIntroduceți cifra corespunzătoare: ");
-    switch (raspuns) {
-        case "1":
-            await adaugaClient();
-            break;
-        case "2":
-            modificaClient();
-            break;
-        case "3":
-            afisareClienti();
-            break;
-        case "4":
-            stergeClient();
-            break;
-        case "0":
-            exit();
-        default:
-            console.log("Opțiune invalidă");
-            await meniu();
-            break;
+// Crearea obiectului programare
+class programari {
+    constructor(clientId, nrInmatriculare, data, ora, actiune, mecanic, stare) {
+        this.id = uuidv4();
+        this.clientId = clientId;
+        this.nrInmatriculare = nrInmatriculare;
+        this.data = data;
+        this.ora = ora;
+        this.actiune = actiune;
+        this.mecanic = mecanic;
+        this.stare = stare;
     }
 }
 
-//definirea funcției de adăugare a unui client
-async function adaugaClient() {
-    const clientNou = new client();
-    clientNou.nume = await intrebare("Introduceți numele clientului: ");
-    clientNou.prenume = await intrebare("Introduceți prenumele clientului: ");
-    clientNou.nrTelefon = await intrebare("Introduceți numărul de telefon al clientului: ");
-    clientNou.email = await intrebare("Introduceți email-ul clientului: ");
-    const nrMasini = parseInt(await intrebare("Introduceți numărul de mașini pe care clientul le va lăsa pentru reparații: "));
-    clientNou.nrMasini = nrMasini;
-    await adaugaMasini(clientNou, nrMasini);
-    console.log("Client adăugat:", clientNou);
-    salvareClient(clientNou);
-}
+// Middleware pentru a putea folosi JSON în request-uri
+app.use(express.json());
 
-//definirea funcției de adăugare a mașinilor pentru un client
-async function adaugaMasini(clientNou, nrMasini) {
-    for (let i = 0; i < nrMasini; i++) {
-        const masinaNoua = new masina();
-        masinaNoua.nrDeInmatriculare = await intrebare(`Introduceți numărul de înmatriculare al mașinii ${i + 1}: `);
-        masinaNoua.serieSasiu = await intrebare(`Introduceți seria de șasiu a mașinii ${i + 1}: `);
-        masinaNoua.marca = await intrebare(`Introduceți marca mașinii ${i + 1}: `);
-        masinaNoua.model = await intrebare(`Introduceți modelul mașinii ${i + 1}: `);
-        masinaNoua.anFabricatie = await intrebare(`Introduceți anul de fabricație al mașinii ${i + 1}: `);
-        masinaNoua.tipMotorizare = await intrebare(`Introduceți tipul motorizării mașinii ${i + 1}: `);
-        masinaNoua.capacitateMotor = await intrebare(`Introduceți capacitatea motorului mașinii ${i + 1}: `);
-        masinaNoua.caiPutere = await intrebare(`Introduceți caii putere ai motorului mașinii ${i + 1}: `);
-        masinaNoua.kwPutere = masinaNoua.caiPutere * 0.735499;
-        masinaNoua.cutieDeViteze = await intrebare(`Introduceți cutia de viteze a mașinii ${i + 1}: `);
-        clientNou.masini.push(masinaNoua);
+// Adăugare client nou
+app.post("/clienti", async (req, res) => {
+    verificaDateClienti();
+    try {
+        const { nume, prenume, nrTelefon, email, nrMasini, masini } = req.body;
+        const clientNou = new client(nume, prenume, nrTelefon, email, nrMasini, masini);
+        clientNou.masini = req.body.masini;
+        await salvareClient(clientNou);
+        res.status(201).json({ message: "Client adăugat", client: clientNou });
+    } catch (error) {
+        console.error("Eroare la adăugarea clientului:", error);
+        res.status(500).json({ error: "Eroare internă" });
     }
+});
+
+// Afișare clienți
+app.get("/clienti", async (req, res) => {
+    verificaDateClienti();
+    try {
+        const clienti = await afisareClienti();
+        res.status(200).json(clienti);
+    } catch (error) {
+        console.error("Eroare la afișarea clienților:", error);
+        res.status(500).json({ error: "Eroare internă" });
+    }
+});
+
+// Ștergere client
+app.delete("/clienti/:id", async (req, res) => {
+    const id = req.params.id;
+    try {
+        await stergeClient(id);
+        res.status(200).json({ message: "Client șters" });
+    } catch (error) {
+        console.error("Eroare la ștergerea clientului:", error);
+        res.status(500).json({ error: "Eroare internă" });
+    }
+});
+
+// Editare client
+app.put("/clienti/:id", async (req, res) => {
+    const id = req.params.id;
+    try {
+        await editareClient(id, req.body);
+        res.status(200).json({ message: "Datele clientului au fost actualizate" });
+    } catch (error) {
+        console.error("Eroare la editarea datelor clientului:", error);
+        res.status(500).json({ error: "Eroare internă" });
+    }
+});
+
+// Adăugare programare
+app.post("/programari", async (req, res) => {
+    verificaDateProgramari();
+    try{
+        const programare = req.body;
+        if(!intervalValid(programare.ora)) {
+            res.status(400).json({ error: "Intervalul orar nu este valid" });
+        }
+        const programareNoua = new programari(programare.clientId, programare.nrInmatriculare, programare.data, programare.ora, programare.actiune, programare.mecanic, programare.stare);
+        await salvareProgramare(programareNoua);
+        res.status(201).json({ message: "Programare adăugată", programare: programareNoua });
+    } catch (error) {
+        console.error("Eroare la adăugarea programării:", error);
+        res.status(500).json({ error: "Eroare internă" });
+    }
+});
+
+// Afisare programari
+app.get("/programari", async (req, res) => {
+    verificaDateProgramari();
+    try {
+        const programari = await afisareProgramari();
+        res.status(200).json(programari);
+    } catch (error) {
+        console.error("Eroare la afișarea programărilor:", error);
+        res.status(500).json({ error: "Eroare internă" });
+    }
+});
+
+// Ștergere programare
+app.delete("/programari/:id", async (req, res) => {
+    const id = req.params.id;
+    try {
+        await stergeProgramare(id);
+        res.status(200).json({ message: "Programare ștearsă" });
+    } catch (error) {
+        console.error("Eroare la ștergerea programării:", error);
+        res.status(500).json({ error: "Eroare internă" });
+    }
+});
+
+// Modificare programare
+app.put("/programari/:id", async (req, res) => {
+    const id = req.params.id;
+    try {
+        await editareProgramare(id, req.body);
+        res.status(200).json({ message: "Datele programării au fost actualizate" });
+    } catch (error) {
+        console.error("Eroare la editarea datelor programării:", error);
+        res.status(500).json({ error: "Eroare internă" });
+    }
+});
+
+// Definirea functiei de verificarea array
+async function verificareArray(ar) {
+    if (!Array.isArray(ar)) {
+        ar = [];
+    }
+    return ar;
 }
 
-// definirea funcției de salvare a unui client în baza de date
+// Definirea funcției de salvare a unui client în baza de date
 async function salvareClient(client) {
     try {
-        let clientiExistenti = await db.getData("/client");
-        console.log("Clienti existenti:", clientiExistenti);
-        if (!Array.isArray(clientiExistenti)) {
-            clientiExistenti = [];
-        }
-        console.log("Clienti existenti:", clientiExistenti);
+        let clientiExistenti = await db.getData("/clienti");
+        await verificareArray(clientiExistenti);
         clientiExistenti.push(client);
-        db.push("/client", clientiExistenti, true);
+        db.push("/clienti", clientiExistenti, true);
     } catch (error) {
         console.error("Eroare la salvarea clientului:", error);
     }
-    meniu();
 }
 
-
-//definirea functiei de modificare a unui client
-async function modificaClient() {
-    const raspuns = await intrebare("Introduceți numele si prenumele clientului pe care doriți să îl modificați: ");
-    try {
-        const clienti = await db.getData("/client");
-        const client = clienti.find((client) => client.nume+" "+client.prenume === raspuns);
-        if (Array.isArray(clienti)) {
-            if (client) {
-                console.log("Client găsit:", client);
-                await modificaCampClient(client);
-                console.log("Client modificat:", client);
-                db.push("/client", clienti, true);
-            }
-            else {
-                console.log("Clientul nu a fost găsit");
-            }
-        }
-        else {
-            console.log("Datele nu sunt în formatul corect");
-        }
-    } 
-    catch (error) {
-        console.error("Eroare la modificarea clientului:", error);
-    }
-    meniu();
-}
-
-//dedinirea funcției de modificare a unui camp al unui client
-async function modificaCampClient(client) {
-    const camp = await intrebare("Ce câmp doriți să modificați?\n1. Nume\n2. Prenume\n3. Număr de telefon\n4. Email\n5. Număr de mașini\n6. Modifica masinile clientului\nIntroduceți cifra corespunzătoare: ");
-        switch (camp) {
-            case "1":
-                client.nume = await intrebare("Introduceți noul nume: ");
-                break;
-            case "2":
-                client.prenume = await intrebare("Introduceți noul prenume: ");
-                break;
-            case "3":
-                client.nrTelefon = await intrebare("Introduceți noul număr de telefon: ");
-                break;
-            case "4":
-                client.email = await intrebare("Introduceți noul email: ");
-                break;
-            case "5":
-                client.nrMasini = await intrebare("Introduceți noul număr de mașini: ");
-                await adaugaMasini(client, client.nrMasini);
-                break;
-            case "6":
-                await modificaMasini(client, client.nrMasini);
-                break;
-            default:
-                console.log("Opțiune invalidă");
-            break;
-        }
-    const raspuns = await intrebare("Doriți să modificați și alt camp? (da/nu): ");
-        switch (raspuns) {
-            case "da":
-                await modificaCampClient(client);
-                break;
-            case "nu":
-                break;
-            default:
-                console.log("Opțiune invalidă");
-                break;
-        }
-    return client;
-}
-//definirea functiei de modificare a masinei clientului 
-async function modificaMasini(client, nrMasini){
-    const masina = await intrebare("Clientul are "+nrMasini+" mașini. Introduceți numărul mașinii pe care doriți să o modificați: ");
-    try {
-        if (client.masini[masina-1]) {
-            console.log("Masina găsit:a", client.masina[masina-1]);
-            const camp = await intrebare("Ce câmp doriți să modificați?\n1. Număr de înmatriculare\n2. Serie de șasiu\n3. Marca\n4. Model\n5. An de fabricație\n6. Tip motorizare\n7. Capacitate motor\n8. Cai putere\n9. Cutie de viteze\nIntroduceți cifra corespunzătoare: ");
-            switch (camp) {
-                case "1":
-                    client.masini[i].nrDeInmatriculare = await intrebare("Introduceți noul număr de înmatriculare: ");
-                    break;
-                case "2":
-                    client.masini[i].serieSasiu = await intrebare("Introduceți noua serie de șasiu: ");
-                    break;
-                case "3":
-                    client.masini[i].marca = await intrebare("Introduceți noua marcă: ");
-                    break;
-                case "4":
-                    client.masini[i].model = await intrebare("Introduceți noul model: ");
-                    break;
-                case "5":
-                    client.masini[i].anFabricatie = await intrebare("Introduceți noul an de fabricație: ");
-                    break;
-                case "6":
-                    client.masini[i].tipMotorizare = await intrebare("Introduceți noul tip de motorizare: ");
-                    break;
-                case "7":
-                    client.masini[i].capacitateMotor = await intrebare("Introduceți noua capacitate a motorului: ");
-                    break;
-                case "8":
-                    client.masini[i].caiPutere = await intrebare("Introduceți noii cai putere: ");
-                    client.masini[i].kwPutere = client.masini[i].caiPutere * 0.735499;
-                    break;
-                case "9":
-                    client.masini[i].cutieDeViteze = await intrebare("Introduceți noua cutie de viteze: ");
-                    break;
-                default:
-                    console.log("Opțiune invalidă");
-                    break;
-            }
-            console.log("Mașina modificată:", client.masini[i]);
-            await intrebare("Doriți să modificați și alta mașina? (da/nu): ");
-            switch (raspuns) {
-                case "da":
-                    await modificaMasini(client, nrMasini);
-                    break;
-                case "nu":
-                    break;
-                default:
-                    console.log("Opțiune invalidă");
-                    break;
-            }
-        }
-        else {
-            console.log("Clientul nu a fost găsit");
-        }
-    }
-    catch (error) {
-        console.error("Eroare la modificarea mașinii:", error);
-    }
-    meniu();
-}
-
+// Definirea funcției de afișare a clienților
 async function afisareClienti() {
-    
     try {
-        const clienti = await db.getData("/client");
-        if (Array.isArray(clienti)) {
-            console.log("Lista clienți:");
-            clienti.forEach((client, index) => {
-                console.log(`Client ${index + 1}:`);
-                console.log(`Nume: ${client.nume}`);
-                console.log(`Prenume: ${client.prenume}`);
-                console.log(`Număr de telefon: ${client.nrTelefon}`);
-                console.log(`Email: ${client.email}`);
-                console.log(`Număr de mașini: ${client.nrMasini}`);
-                console.log("Mașini:");
-                client.masini.forEach((masina, masinaIndex) => {
-                    console.log(`Mașina ${masinaIndex + 1}:`);
-                    console.log(`Număr de înmatriculare: ${masina.nrDeInmatriculare}`);
-                    console.log(`Serie de șasiu: ${masina.serieSasiu}`);
-                    console.log(`Marca: ${masina.marca}`);
-                    console.log(`Model: ${masina.model}`);
-                    console.log(`An de fabricație: ${masina.anFabricatie}`);
-                    console.log(`Tip motorizare: ${masina.tipMotorizare}`);
-                    console.log(`Capacitate motor: ${masina.capacitateMotor}`);
-                    console.log(`Cai putere: ${masina.caiPutere}`);
-                    console.log(`Cutie de viteze: ${masina.cutieDeViteze}`);
-                    console.log(`Kw putere: ${masina.kwPutere}`);
-                });
-                console.log("-----------------------------------");
-            });
-        }
-        else {
-            console.log("Datele nu sunt în formatul corect");
-        }
+        const clienti = await db.getData("/clienti");
+        return clienti;
     } catch (error) {
         console.error("Eroare la afișarea clienților:", error);
+        throw error;
     }
-    meniu();
 }
 
-//definirea funcției de ștergere a unui client
-async function stergeClient() {
-    const raspuns = await intrebare("Introduceți numele și prenumele clientului pe care doriți să îl ștergeți: ");
+// Definirea funcției de ștergere a unui client
+async function stergeClient(id) {
     try {
-        const clienti = await db.getData("/client");
-        if (Array.isArray(clienti)) {
-            const client = clienti.find((client) => client.nume + " " + client.prenume === raspuns);
-            if (client) {
-                console.log("Client găsit:", client);
-                const raspuns = await intrebare("Sunteți sigur că doriți să ștergeți clientul? (da/nu): ");
-                switch (raspuns) {
-                    case "da":
-                        const index = clienti.indexOf(client);
-                        clienti.splice(index, 1);
-                        db.push("/client", clienti, true);
-                        console.log("Client șters");
-                        break;
-                    case "nu":
-                        console.log("Clientul nu a fost șters");
-                        break;
-                    default:
-                        console.log("Opțiune invalidă");
-                        break;
-                }
-            } else {
-                console.log("Clientul nu a fost găsit");
-            }
-        } else {
-            console.log("Datele din fișierul JSON nu sunt în formatul corect");
-        }
+        let clienti = await db.getData("/clienti");
+        await verificareArray(clienti);
+        clienti = clienti.filter((client) => client.id !== id);
+        db.push("/clienti", clienti, true);
     } catch (error) {
         console.error("Eroare la ștergerea clientului:", error);
+        throw error;
     }
-    meniu();
 }
 
 
-//definirea rutei principale
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "index.html"));
-});
+// Verificăm datele clientilor existente în fișierul baza.json
+async function verificaDateClienti() {
+    let clientiExistenti;
+    try {
+        clientiExistenti = db.getData("/clienti");
+        await verificareArray(clientiExistenti);
+    } catch (error) {
+        console.error("Nu există date în fișierul baza.json");
+        }
+        return;
+    }
 
-//pornirea serverului pe portul 3000 și afișarea unui mesaj de confirmare
+// Definirea funcției de editare a datelor unui client
+async function editareClient(id, dateUpdatate) {
+    try {
+        let clienti = await db.getData("/clienti");
+        await verificareArray(clienti);
+        const index = clienti.findIndex(client => client.id === id);
+        if (index !== -1) {
+            clienti[index] = { ...clienti[index], ...dateUpdatate };
+            db.push("/clienti", clienti, true);
+        } else {
+            throw new Error("Clientul nu a fost găsit");
+        }
+    } catch (error) {
+        console.error("Eroare la editarea datelor clientului:", error);
+        throw error;
+    }
+}
+
+
+// Definirea funcției de salvare a unei programări în baza de date
+async function intervalValid(ora) {
+    return ora >= 8 && ora <= 17 && ora % 0.5 === 0;
+}
+
+// Definirea funcției de salvare a unei programări în baza de date
+async function salvareProgramare(programare) {
+    try {
+        let programariExistente = await db.getData("/programari");
+        await verificareArray(programariExistente);
+        programariExistente.push(programare);
+        db.push("/programari", programariExistente, true);
+    } catch (error) {
+        console.error("Eroare la salvarea programării:", error);
+        throw error;
+    }
+
+}
+
+// Verificăm datele programarilor existente în fișierul baza.json
+async function verificaDateProgramari() {
+    let programariExistente;
+    try {
+        programariExistente = db.getData("/programari");
+        await verificareArray(programariExistente);
+    } catch (error) {
+        console.error("Nu există date în fișierul baza.json");
+        }
+    return;
+}
+
+// Definirea funcției de afișare a programărilor
+async function afisareProgramari() {
+    try {
+        const programari = await db.getData("/programari");
+        return programari;
+    } catch (error) {
+        console.error("Eroare la afișarea programărilor:", error);
+        throw error;
+    }
+}
+
+// Definirea funcției de ștergere a unei programări
+async function stergeProgramare(id) {
+    try {
+        let programari = await db.getData("/programari");
+        await verificareArray(programari);
+        programari = programari.filter((programare) => programare.id !== id);
+        db.push("/programari", programari, true);
+    } catch (error) {
+        console.error("Eroare la ștergerea programării:", error);
+        throw error;
+    }
+}
+
+// Definirea funcției de editare a datelor unei programări
+async function editareProgramare(id, dateUpdatate) {
+    try {
+        let programari = await db.getData("/programari");
+        await verificareArray(programari);
+        const index = programari.findIndex(programare => programare.id === id);
+        if (index !== -1) {
+            programari[index] = { ...programari[index], ...dateUpdatate };
+            db.push("/programari", programari, true);
+        } else {
+            throw new Error("Programarea nu a fost găsită");
+        }
+    } catch (error) {
+        console.error("Eroare la editarea datelor programării:", error);
+        throw error;
+    }
+}
+
+// Pornirea serverului
 app.listen(port, () => {
     console.log(`Server started on port ${port}`);
-    meniu();
-});
-
-//eroare 404 pentru rutele inexistente
-app.use((req, res) => {
-    res.status(404).send("Not Found");
 });
