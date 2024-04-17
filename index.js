@@ -1,9 +1,6 @@
-// TODO crearea functii separate pentru adaugare, afisare, stergere si editare care sa ia parametrii on functie de ce se doreste
-// TODO curatare cod, inca sunt chestii nefolosite ramase din teste
-// TODO verifica clasa masini daca e necesara
-// TODO adaugare comentarii/editeaza comentarii
-// TODO adauga functionalitate noua poate pret estimativ la programari
-// TODO curata baza de date si postman de cuvinte obsecene:)))
+// TODO mai adauga inca cv functionalitate ca ai facut tot ce era de facut
+
+
 
 // Importarea modulelor necesare
 import express from "express";
@@ -30,27 +27,9 @@ class client {
     }
 }
 
-// Crearea obiectului masina posibil degeaba
-class masina {
-    constructor(nrInmatriculare, serieSasiu, marca, model, anFabricatie, tipMotorizare, capacitateMotor, caiPutere, cutieDeViteze, kwPutere) {
-        this.Id = uuidv4();
-        this.nrInmatriculare = nrInmatriculare;
-        this.serieSasiu = serieSasiu;
-        this.marca = marca;
-        this.model = model;
-        this.anFabricatie = anFabricatie;
-        this.tipMotorizare = tipMotorizare;
-        this.capacitateMotor = capacitateMotor;
-        this.caiPutere = caiPutere;
-        this.cutieDeViteze = cutieDeViteze;
-        this.kwPutere = kwPutere;
-        this.istoric = [];
-    }
-}
-
 // Crearea obiectului programare
 class programari {
-    constructor(clientId, nrInmatriculare, data, ora, actiune, mecanic, status) {
+    constructor(clientId, nrInmatriculare, data, ora, actiune, mecanic, status, pretEstimativ) {
         this.id = uuidv4();
         this.clientId = clientId;
         this.nrInmatriculare = nrInmatriculare;
@@ -59,8 +38,20 @@ class programari {
         this.actiune = actiune;
         this.mecanic = mecanic;
         this.status = status;
+        this.pretEstimativ = pretEstimativ;
     }
 }
+
+// Crearea unui obiect pentru a stoca preturile celor mai comune actiuni
+const preturiActiuni = {
+    "schimbare bujii": 50,
+    "schimbare becuri": 20,
+    "schimbare senzori": 100,
+    "schimbare ulei": 100,
+    "schimbare placute frana": 200,
+    "schimbare anvelope": 200,
+    "schimbare baterie": 150,
+};
 
 // Middleware pentru a putea folosi JSON în request-uri
 app.use(express.json());
@@ -121,7 +112,12 @@ app.post("/programari", async (req, res) => {
     verificaDateProgramari();
     try{
         const {clientId, nrInmatriculare, data, ora, actiune, mecanic, status} = req.body;
-        const programareNoua = new programari(clientId, nrInmatriculare, data, ora, actiune, mecanic, status)
+        const pretEstimativ = preturiActiuni[actiune];
+        if(pretEstimativ === undefined) {
+            console.log("Actiunea nu exista in lista de preturi");
+            res.status(400).json({ error: "Actiunea nu exista in lista de preturi" });
+        }
+        const programareNoua = new programari(clientId, nrInmatriculare, data, ora, actiune, mecanic, status, pretEstimativ)
         if(!intervalValid(programareNoua.ora)) {
             res.status(400).json({ error: "Intervalul orar nu este valid" });
         };
@@ -170,15 +166,13 @@ app.put("/programari/:id", async (req, res) => {
     }
 });
 
+// Adăugare mașină pentru client
 app.post("/clienti/:id/masini", async (req, res) => {
     const id = req.params.id;
-    const masinaNoua = req.body; // Datele despre mașină primite din corpul cererii
+    const masinaNoua = req.body;
     try {
-        // Găsiți clientul cu ID-ul specificat
         const client = await gasesteClient(id);
-        // Adăugați mașina nouă la lista de mașini a clientului
         client.masini.push(masinaNoua);
-        // Salvare client actualizat în baza de date
         await editareClient(id, { masini: client.masini });
         res.status(201).json({ message: "Mașină adăugată", masina: masinaNoua });
     } catch (error) {
@@ -187,13 +181,11 @@ app.post("/clienti/:id/masini", async (req, res) => {
     }
 });
 
-
+// Afișare mașini pentru client
 app.get("/clienti/:id/masini", async (req, res) => {
     const id = req.params.id;
     try {
-        // Găsiți clientul cu ID-ul specificat
         const client = await gasesteClient(id);
-        // Returnați lista de mașini a clientului
         res.status(200).json(client.masini);
     } catch (error) {
         console.error("Eroare la afișarea mașinilor clientului:", error);
@@ -201,15 +193,13 @@ app.get("/clienti/:id/masini", async (req, res) => {
     }
 });
 
+// Ștergere mașină pentru client
 app.delete("/clienti/:id/masini/:nrInmatriculare", async (req, res) => {
     const id = req.params.id;
     const nrInmatriculare = req.params.nrInmatriculare;
     try {
-        // Găsiți clientul cu ID-ul specificat
         const client = await gasesteClient(id);
-        // Filtrați mașina de șters din lista de mașini a clientului
         client.masini = client.masini.filter(masina => masina.nrInmatriculare !== nrInmatriculare);
-        // Salvare client actualizat în baza de date
         await editareClient(id, { masini: client.masini });
         res.status(200).json({ message: "Mașină ștearsă" });
     } catch (error) {
@@ -218,19 +208,16 @@ app.delete("/clienti/:id/masini/:nrInmatriculare", async (req, res) => {
     }
 });
 
+// Modificare mașină pentru client
 app.put("/clienti/:id/masini/:nrInmatriculare", async (req, res) => {
     const id = req.params.id;
     const nrInmatriculare = req.params.nrInmatriculare;
-    const dateActualizate = req.body; // Datele actualizate despre mașină
+    const dateActualizate = req.body;
     try {
-        // Găsiți clientul cu ID-ul specificat
         const client = await gasesteClient(id);
-        // Găsiți mașina specificată în lista de mașini a clientului
         const masinaIndex = client.masini.findIndex(masina => masina.nrInmatriculare === nrInmatriculare);
         if (masinaIndex !== -1) {
-            // Actualizați datele mașinii
             client.masini[masinaIndex] = { ...client.masini[masinaIndex], ...dateActualizate };
-            // Salvare client actualizat în baza de date
             await editareClient(id, { masini: client.masini });
             res.status(200).json({ message: "Datele mașinii au fost actualizate" });
         } else {
@@ -241,7 +228,6 @@ app.put("/clienti/:id/masini/:nrInmatriculare", async (req, res) => {
         res.status(500).json({ error: "Eroare internă" });
     }
 });
-
 
 // Definirea functiei de verificarea array
 async function verificareArray(ar) {
@@ -264,8 +250,6 @@ async function salvareClient(client) {
         throw error;
     }
 }
-
-
 
 // Definirea funcției de afișare a clienților
 async function afisareClienti() {
@@ -292,7 +276,7 @@ async function stergeClient(id) {
 }
 
 
-// Verificăm datele clientilor existente în fișierul baza.json
+// Verificarea datellor clientilor existenti în fișierul baza.json
 async function verificaDateClienti() {
     let clientiExistenti;
     try {
@@ -301,8 +285,8 @@ async function verificaDateClienti() {
     } catch (error) {
         console.error("Nu există date în fișierul baza.json");
         }
-        return;
-    }
+    return;
+}
 
 // Definirea funcției de editare a datelor unui client
 async function editareClient(id, dateUpdatate) {
@@ -338,7 +322,7 @@ async function gasesteClient(clientId) {
 }
 
 
-// Definirea funcției de salvare a unei programări în baza de date
+// Definirea funcției de validare a orei programării
 async function intervalValid(ora) {
     return ora >= 8 && ora <= 17 && ora % 0.5 === 0;
 }
@@ -357,7 +341,7 @@ async function salvareProgramare(programare) {
 
 }
 
-// Verificăm datele programarilor existente în fișierul baza.json
+// Definirea functiei de verificare a programarilor existente în fișierul baza.json
 async function verificaDateProgramari() {
     try {
         let programariExistente = db.getData("/programari");
@@ -365,6 +349,7 @@ async function verificaDateProgramari() {
     } catch (error) {
         console.error("Nu există date în fișierul baza.json");
         }
+    return;
 }
 
 // Definirea funcției de afișare a programărilor
@@ -411,5 +396,5 @@ async function editareProgramare(id, dateUpdatate) {
 
 // Pornirea serverului
 app.listen(port, () => {
-    console.log(`Server started on port ${port}`);
+    console.log(`Serverul a pornit pe portul: ${port}`);
 });
