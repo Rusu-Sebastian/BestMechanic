@@ -427,21 +427,20 @@ async function verificaDateFeedback() {
 
 
 // Functie de a valida intervalul orar a programarii
-async function intervalValid(ora, res) {
+async function intervalValid(ora) {
     try {
         const oraProgramare = ora.split(":");
-        const oraInt = parseInt(oraProgramare[0]);
-        const minutInt = parseInt(oraProgramare[1]);
-        if (minutInt > 30) {
+        var oraInt = parseInt(oraProgramare[0]);
+        var minutInt = parseInt(oraProgramare[1]);
+        if (minutInt > 30 && oraInt > 7) {
             oraInt++;
         }
-        if (oraInt < 8 || oraInt > 17) {
-            return false;
-        } else {
+        if (oraInt >= 8 && oraInt <= 17) {
             return true;
+        } else {
+            return false;
         }
     } catch (error) {
-        //res.status(400).json({ error: "Intervalul orar nu este valid" });
         return false;
     }
 }
