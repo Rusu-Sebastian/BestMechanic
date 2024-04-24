@@ -92,20 +92,21 @@ app.post("/clienti/:id/masini", async (req, res) => {
 // Adăugare programare
 app.post("/programari", async (req, res) => {
     verificaDateProgramari();
-    try{
-        const {clientId, nrInmatriculare, data, ora, actiune, mecanic, status} = req.body;
-        const pretEstimativ = preturiActiuni[actiune];
-        if(pretEstimativ === undefined) {
+    try {
+        const { clientId, nrInmatriculare, data, ora, actiune, mecanic, status } = req.body;
+        const pretEstimativ = preturiActiuni.hasOwnProperty(actiune) ? preturiActiuni[actiune] : undefined;
+        if (pretEstimativ === undefined) {
             console.log("Actiunea nu exista in lista de preturi");
-            res.status(400).json({ error: "Actiunea nu exista in lista de preturi" });
         }
-        const programareNoua = new programari(clientId, nrInmatriculare, data, ora, actiune, mecanic, status, pretEstimativ)
-        if(!intervalValid(programareNoua.ora)) {
+        if (await intervalValid(req.body.ora, res) === false) {
+            console.log("Intervalul orar nu este valid");
             res.status(400).json({ error: "Intervalul orar nu este valid" });
-        };
-        console.log(programareNoua);
-        await salvareProgramare(programareNoua);
-        res.status(201).json({ message: "Programare adăugată", programare: programareNoua });
+        } else{
+            const programareNoua = new programari(clientId, nrInmatriculare, data, ora, actiune, mecanic, status, pretEstimativ)
+            console.log(programareNoua);
+            await salvareProgramare(programareNoua);
+            res.status(201).json({ message: "Programare adăugată", programare: programareNoua });
+        }
     } catch (error) {
         eroare(error, res);
     }
@@ -392,7 +393,7 @@ async function verificareArray(ar) {
 async function verificaDateClienti() {
     let clientiExistenti;
     try {
-        clientiExistenti = db.getData("/clienti");
+        clientiExistenti =  await db.getData("/clienti");
         await verificareArray(clientiExistenti);
     } catch (error) {
         console.error("Nu există date în fișierul baza.json");
@@ -426,15 +427,23 @@ async function verificaDateFeedback() {
 
 
 // Functie de a valida intervalul orar a programarii
-async function intervalValid(ora) {
-    const oraProgramare = ora.split(":");
-    if (oraProgramare[1] > 0) {
-        oraProgramare[0]++;
-    }
-    if (oraProgramare[0] < 8 || oraProgramare[0] > 17) {
+async function intervalValid(ora, res) {
+    try {
+        const oraProgramare = ora.split(":");
+        const oraInt = parseInt(oraProgramare[0]);
+        const minutInt = parseInt(oraProgramare[1]);
+        if (minutInt > 30) {
+            oraInt++;
+        }
+        if (oraInt < 8 || oraInt > 17) {
+            return false;
+        } else {
+            return true;
+        }
+    } catch (error) {
+        //res.status(400).json({ error: "Intervalul orar nu este valid" });
         return false;
     }
-    return true;
 }
 
 
@@ -483,7 +492,6 @@ async function gasesteFeedback(programareId) {
     }
 }
 
-
 // Functie de salvare a unui client în baza de date
 async function salvareClient(client) {
     try {
@@ -502,9 +510,11 @@ async function salvareClient(client) {
 async function salvareProgramare(programare) {
     try {
         let programariExistente = await db.getData("/programari");
+        console.log(programariExistente);
         await verificareArray(programariExistente);
         programariExistente.push(programare);
         db.push("/programari", programariExistente, true);
+        return;
     } catch (error) {
         console.error("Eroare la salvarea programării:", error);
         throw error;
